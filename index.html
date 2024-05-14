@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Publicar archivos con WebTorrent y localStorage</title>
+  </head>
+  <body>
+    <h1>Publicar archivos con WebTorrent y localStorage</h1>
+    <form id="uploadForm">
+      <input type="file" id="fileInput" />
+      <button type="submit">Subir Archivo</button>
+    </form>
+    <div id="fileList"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
+    <script type="module">
+      const client = new WebTorrent();
+      var request = indexedDB.open("fileDatabase", 1);
+      request.onupgradeneeded = function (event) {
+        var db = event.target.result;
+        var objectStore = db.createObjectStore("files", {
+          autoIncrement: true,
+        });
+      };
+      request.onsuccess = function (event) {
+        console.log("Exito al abrir la base de datos");
+        var db = event.target.result;
+        function addFile(file) {
+          fileToBase64(file, function (base64String) {
+            if (base64String) {
+              var transaction = db.transaction(["files"], "readwrite");
+              var objectStore = transaction.objectStore("files");
+              var request = objectStore.add({
+                data: base64String,
+                name: file.name,
+              });
+              request.onsuccess = function (event) {
+                console.log(
+                  "Archivo agregado correctamente a la base de datos."
+                );
+              };
+              request.onerror = function (event) {
+                console.error(
+                  "Error al agregar el archivo a la base de datos:",
+                  event.target.error
+                );
+              };
+            }
+          });
+        }
+        function seedFiles() {
+          if (db.objectStoreNames.contains("files")) {
+            var transaction = db.transaction(["files"], "readonly");
+            var objectStore = transaction.objectStore("files");
+            var request = objectStore.openCursor();
+            request.onsuccess = function (event) {
+              var cursor = event.target.result;
+              if (cursor) {
+                var fileData = cursor.value;
+                var blob = base64toBlob(fileData.data);
+                client.seed(blob, { name: fileData.name }, function (torrent) {
+                  console.log(
+                    "Archivo sembrado correctamente:",
+                    torrent.magnetURI
+                  );
+                  const magnetLink = torrent.magnetURI;
+                  fileList.innerHTML += `<p>${fileData.name}</p>`;
+                });
+                cursor.continue();
+              }
+            };
+          }
+        }
+        var form = document.getElementById("uploadForm");
+        form.addEventListener("submit", function (event) {
+          event.preventDefault();
+          var fileInput = document.getElementById("fileInput");
+          var file = fileInput.files[0];
+          addFile(file);
+          client.seed(file, { name: file.name }, function (torrent) {
+            console.log("Archivo sembrado correctamente:", torrent.magnetURI);
+            const magnetLink = torrent.magnetURI;
+            fileList.innerHTML += `<p>${file.name}</p>`;
+          });
+        });
+        seedFiles();
+      };
+      request.onerror = function (event) {
+        console.error("Error al abrir la base de datos:", event.target.error);
+      };
+      function base64toBlob(base64String) {
+        var binaryString = atob(base64String);
+        var arrayBuffer = new ArrayBuffer(binaryString.length);
+        var uint8Array = new Uint8Array(arrayBuffer);
+        for (var i = 0; i < binaryString.length; i++) {
+          uint8Array[i] = binaryString.charCodeAt(i);
+        }
+        return new Blob([uint8Array]);
+      }
+      function fileToBase64(file, callback) {
+        var reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = function () {
+          var base64String = reader.result.split(",")[1];
+          callback(base64String);
+        };
+        reader.onerror = function (error) {
+          console.error("Error al leer el archivo:", error);
+          callback(null);
+        };
+      }
+    </script>
+  </body>
+</html>

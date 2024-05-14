@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Mostrar archivo descargado</title>
+  </head>
+  <body>
+    <h1>Mostrar archivo descargado</h1>
+    <div id="fileDisplay"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
+    <script>
+      const client = new WebTorrent();
+      const magnetURI =
+        "magnet:?xt=urn:btih:971ea326ec3b386e86fed0406a0a59500c34543c&dn=WhatsApp+Image+2024-05-10+at+13.47.53.jpeg&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com";
+
+      client.add(magnetURI, (torrent) => {
+        const file = torrent.files[0];
+        file.getBlobURL((err, url) => {
+          if (err) return console.error(err);
+          const fileDisplay = document.getElementById("fileDisplay");
+          if (
+            file.name.endsWith(".png") ||
+            file.name.endsWith(".jpg") ||
+            file.name.endsWith(".jpeg") ||
+            file.name.endsWith(".gif")
+          ) {
+            fileDisplay.innerHTML = `<img src="${url}" alt="${file.name}" />`;
+          } else {
+            fileDisplay.innerHTML = `<a href="${url}" download="${file.name}">Descargar ${file.name}</a>`;
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
