@@ -64,6 +64,7 @@
                   );
                   const magnetLink = torrent.magnetURI;
                   fileList.innerHTML += `<p>${fileData.name}</p>`;
+                  fileList.innerHTML += `<p>${magnetLink}</p>`;
                 });
                 cursor.continue();
               }
@@ -80,6 +81,7 @@
             console.log("Archivo sembrado correctamente:", torrent.magnetURI);
             const magnetLink = torrent.magnetURI;
             fileList.innerHTML += `<p>${file.name}</p>`;
+            fileList.innerHTML += `<p>${magnetLink}</p>`;
           });
         });
         seedFiles();
