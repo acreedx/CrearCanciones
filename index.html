@@ -6,11 +6,12 @@
   <body>
     <h1>Publicar archivos con WebTorrent y localStorage</h1>
     <form id="uploadForm">
-      <input type="file" id="fileInput" />
+      <input type="file" id="fileInput" multiple />
       <button type="submit">Subir Archivo</button>
     </form>
     <div id="fileList"></div>
 
+    <div id="loading"></div>
     <script src="https://cdn.jsdelivr.net/npm/webtorrent/webtorrent.min.js"></script>
     <script type="module">
       const client = new WebTorrent();
@@ -18,13 +19,14 @@
       request.onupgradeneeded = function (event) {
         var db = event.target.result;
         var objectStore = db.createObjectStore("files", {
+          keyPath: "id",
           autoIncrement: true,
         });
       };
       request.onsuccess = function (event) {
         console.log("Exito al abrir la base de datos");
         var db = event.target.result;
-        function addFile(file) {
+        async function addFile(file) {
           fileToBase64(file, function (base64String) {
             if (base64String) {
               var transaction = db.transaction(["files"], "readwrite");
@@ -51,7 +53,7 @@
           if (db.objectStoreNames.contains("files")) {
             var transaction = db.transaction(["files"], "readonly");
             var objectStore = transaction.objectStore("files");
-            var request = objectStore.openCursor();
+            var request = objectStore.openCursor(null, "next");
             request.onsuccess = function (event) {
               var cursor = event.target.result;
               if (cursor) {
@@ -72,17 +74,22 @@
           }
         }
         var form = document.getElementById("uploadForm");
-        form.addEventListener("submit", function (event) {
+        form.addEventListener("submit", async function (event) {
           event.preventDefault();
+          var loading = document.getElementById("loading");
           var fileInput = document.getElementById("fileInput");
-          var file = fileInput.files[0];
-          addFile(file);
-          client.seed(file, { name: file.name }, function (torrent) {
-            console.log("Archivo sembrado correctamente:", torrent.magnetURI);
-            const magnetLink = torrent.magnetURI;
-            fileList.innerHTML += `<p>${file.name}</p>`;
-            fileList.innerHTML += `<p>${magnetLink}</p>`;
-          });
+          var files = fileInput.files;
+          loading.innerHTML += "Loading...";
+          for (let i = 0; i < files.length; i++) {
+            await addFile(files[i]);
+            client.seed(files[i], { name: files[i].name }, function (torrent) {
+              console.log("Archivo sembrado correctamente:", torrent.magnetURI);
+              const magnetLink = torrent.magnetURI;
+              fileList.innerHTML += `<p>${files[i].name}</p>`;
+              fileList.innerHTML += `<p>${magnetLink}</p>`;
+            });
+          }
+          console.log(files);
         });
         seedFiles();
       };
